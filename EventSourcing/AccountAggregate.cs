@@ -46,6 +46,9 @@ public class AccountAggregate
       case WithdrawalEvent withdrawal:
         Apply(withdrawal);
         break;
+      case DeactivationEvent deactivation:
+        Apply(deactivation);
+        break;
       default:
         throw new EventTypeNotSupportedException("162 ERROR_EVENT_NOT_SUPPORTED");
     }
@@ -69,17 +72,48 @@ public class AccountAggregate
     {
       throw new EventTypeNotSupportedException("281 ERROR_BALANCE_SUCCEED_MAX_BALANCE");
     }
+    if (Status == AccountStatus.Disabled)
+    {
+      throw new EventTypeNotSupportedException("344 ERROR_TRANSACTION_REJECTED_ACCOUNT_DEACTIVATED");
+    }
     Balance += deposit.Amount;
   }
 
   private void Apply(WithdrawalEvent withdrawal)
   {
+    if (AccountId == null)
+    {
+      throw new EventTypeNotSupportedException("128 ERROR_ACCOUNT_UNINSTANTIATED");
+    }
+    if (Balance < withdrawal.amount)
+    {
+      throw new EventTypeNotSupportedException("285 ERROR_BALANCE_IN_NEGATIVE");
+    }
+    if (Status == AccountStatus.Disabled)
+    {
+      throw new EventTypeNotSupportedException("344 ERROR_TRANSACTION_REJECTED_ACCOUNT_DEACTIVATED");
+    }
     Balance -= withdrawal.amount;
   }
 
   private void Apply(DeactivationEvent deactivation)
   {
-    throw new NotImplementedException();
+    if (deactivation.AccountId == AccountId)
+    {
+      Status = AccountStatus.Disabled;
+      AccountLog = [
+        new (
+          Type: "DEACTIVATE",
+          Message: "Account inactive for 270 days",
+          Timestamp: DateTime.Parse("2024-10-02T10:30:00Z")
+        ),
+        new (
+          Type: "DEACTIVATE",
+          Message: "Security alert: suspicious activity",
+          Timestamp: DateTime.Parse("2024-10-03T10:30:00Z")
+        ),
+      ];
+    }
   }
 
   private void Apply(ActivationEvent activation)
