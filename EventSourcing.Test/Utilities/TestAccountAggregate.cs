@@ -11,4 +11,5 @@ public class TestAccountAggregate
   public string? CustomerId { get; set; }
   public AccountStatus Status { get; set; }
   public List<LogMessage>? AccountLog { get; set; }
+  public CurrencyType NewCurrency { get; set; }
 }

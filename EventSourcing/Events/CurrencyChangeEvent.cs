@@ -5,9 +5,9 @@ namespace EventSourcing.Events;
 
 public record CurrencyChangeEvent : Event
 {
-  [JsonPropertyName("newBalance")] 
+  [JsonPropertyName("newBalance")]
   public required decimal NewBalance { get; init; }
 
-  [JsonPropertyName("currency")]
-  public required CurrencyType Currency { get; init; }
+  [JsonPropertyName("newCurrency")]
+  public required CurrencyType NewCurrency { get; init; }
 }

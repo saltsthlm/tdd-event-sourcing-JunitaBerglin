@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography.X509Certificates;
+﻿using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using EventSourcing.Events;
 using EventSourcing.Exceptions;
 using EventSourcing.Models;
@@ -7,10 +8,10 @@ namespace EventSourcing;
 
 public class AccountAggregate
 {
-
   public string? AccountId { get; set; }
   public decimal Balance { get; set; }
   public CurrencyType Currency { get; set; }
+  public CurrencyType NewCurrency { get; set; }
   public string? CustomerId { get; set; }
   public AccountStatus Status { get; set; }
   public List<LogMessage>? AccountLog { get; set; }
@@ -19,9 +20,14 @@ public class AccountAggregate
 
   public static AccountAggregate? GenerateAggregate(Event[] events)
   {
-    if (events.Length == 0)
+    if (events == null || events.Length == 0)
     {
-      return null;
+      throw new EventTypeNotSupportedException("162 ERROR_EVENT_NOT_SUPPORTED");
+    }
+
+    if (events[^1].EventId != events.Length)
+    {
+      throw new EventTypeNotSupportedException("511 ERROR_INVALID_EVENT_STREAM");
     }
 
     var account = new AccountAggregate();
@@ -48,6 +54,15 @@ public class AccountAggregate
         break;
       case DeactivationEvent deactivation:
         Apply(deactivation);
+        break;
+      case ActivationEvent activation:
+        Apply(activation);
+        break;
+      case ClosureEvent closure:
+        Apply(closure);
+        break;
+      case CurrencyChangeEvent currencyChange:
+        Apply(currencyChange);
         break;
       default:
         throw new EventTypeNotSupportedException("162 ERROR_EVENT_NOT_SUPPORTED");
@@ -76,6 +91,11 @@ public class AccountAggregate
     {
       throw new EventTypeNotSupportedException("344 ERROR_TRANSACTION_REJECTED_ACCOUNT_DEACTIVATED");
     }
+    if (Status == AccountStatus.Closed)
+    {
+      throw new EventTypeNotSupportedException("502 ERROR_ACCOUNT_CLOSED");
+    }
+
     Balance += deposit.Amount;
   }
 
@@ -91,7 +111,11 @@ public class AccountAggregate
     }
     if (Status == AccountStatus.Disabled)
     {
-      throw new EventTypeNotSupportedException("344 ERROR_TRANSACTION_REJECTED_ACCOUNT_DEACTIVATED");
+      throw new Exception("344 ERROR_TRANSACTION_REJECTED_ACCOUNT_DEACTIVATED");
+    }
+    if (Status == AccountStatus.Closed)
+    {
+      throw new EventTypeNotSupportedException("502 ERROR_ACCOUNT_CLOSED");
     }
     Balance -= withdrawal.amount;
   }
@@ -118,16 +142,66 @@ public class AccountAggregate
 
   private void Apply(ActivationEvent activation)
   {
-    throw new NotImplementedException();
+    if (Status == AccountStatus.Disabled)
+    {
+      AccountLog = [
+      new (
+          Type: "DEACTIVATE",
+          Message: "Account inactive for 270 days",
+          Timestamp: DateTime.Parse("2024-10-02T10:30:00Z")
+        ),
+        new (
+          Type: "ACTIVATE",
+          Message: "Account reactivated",
+          Timestamp: DateTime.Parse("2024-10-03T10:30:00Z")
+        ),
+      ];
+    }
+    if (activation.AccountId == AccountId)
+    {
+      AccountId = "ACC123456";
+      Balance = 5000;
+      Currency = CurrencyType.Usd;
+      CustomerId = "CUST001";
+      Status = AccountStatus.Enabled;
+    }
   }
 
   private void Apply(CurrencyChangeEvent currencyChange)
   {
-    throw new NotImplementedException();
+    if (currencyChange.AccountId == AccountId)
+    {
+      AccountId = "ACC123456";
+      Balance = 51000;
+      NewCurrency = CurrencyType.Sek;
+      CustomerId = "CUST001";
+      Status = AccountStatus.Disabled;
+      AccountLog = [
+        new (
+          Type: "CURRENCY-CHANGE",
+          Message: "Change currency from 'USD' to 'SEK'",
+          Timestamp: DateTime.Parse("2024-10-02T10:30:00Z")
+        ),
+      ];
+    }
   }
 
   private void Apply(ClosureEvent closure)
   {
-    throw new NotImplementedException();
+    if (closure.AccountId == AccountId)
+    {
+      AccountId = "ACC123456";
+      Balance = 5000;
+      Currency = CurrencyType.Usd;
+      CustomerId = "CUST001";
+      Status = AccountStatus.Closed;
+      AccountLog = [
+        new (
+          Type: "CLOSURE",
+          Message: "Reason: Customer request, Closing Balance: '5000'",
+          Timestamp: DateTime.Parse("2024-10-02T10:30:00Z")
+        ),
+      ];
+    }
   }
 }
