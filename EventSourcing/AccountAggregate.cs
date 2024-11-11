@@ -1,4 +1,5 @@
-﻿using EventSourcing.Events;
+﻿using System.Security.Cryptography.X509Certificates;
+using EventSourcing.Events;
 using EventSourcing.Exceptions;
 using EventSourcing.Models;
 
@@ -14,7 +15,7 @@ public class AccountAggregate
   public AccountStatus Status { get; set; }
   public List<LogMessage>? AccountLog { get; set; }
 
-  private AccountAggregate(){}
+  private AccountAggregate() { }
 
   public static AccountAggregate? GenerateAggregate(Event[] events)
   {
@@ -22,7 +23,7 @@ public class AccountAggregate
     {
       return null;
     }
-    
+
     var account = new AccountAggregate();
     foreach (var accountEvent in events)
     {
@@ -42,10 +43,13 @@ public class AccountAggregate
       case DepositEvent deposit:
         Apply(deposit);
         break;
+      case WithdrawalEvent withdrawal:
+        Apply(withdrawal);
+        break;
       default:
         throw new EventTypeNotSupportedException("162 ERROR_EVENT_NOT_SUPPORTED");
     }
-  } 
+  }
 
   private void Apply(AccountCreatedEvent accountCreated)
   {
@@ -57,12 +61,20 @@ public class AccountAggregate
 
   private void Apply(DepositEvent deposit)
   {
+    if (AccountId == null)
+    {
+      throw new EventTypeNotSupportedException("128 ERROR_ACCOUNT_UNINSTANTIATED");
+    }
+    if (Balance < deposit.Amount)
+    {
+      throw new EventTypeNotSupportedException("281 ERROR_BALANCE_SUCCEED_MAX_BALANCE");
+    }
     Balance += deposit.Amount;
   }
 
-  private void Apply(WithdrawalEvent wihdrawal)
+  private void Apply(WithdrawalEvent withdrawal)
   {
-    throw new NotImplementedException();
+    Balance -= withdrawal.amount;
   }
 
   private void Apply(DeactivationEvent deactivation)
